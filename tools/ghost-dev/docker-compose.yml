@@ -10,6 +10,8 @@ services:
       - "2368:2368"
     environment:
       url: http://localhost:2368
+      # Listen on IPv4 only; some Docker hosts have no IPv6 (Ghost fails with code -97).
+      server__host: 0.0.0.0
       database__client: mysql
       database__connection__host: db
       database__connection__user: root

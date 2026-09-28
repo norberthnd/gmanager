@@ -19,11 +19,19 @@ import urllib.request
 SITE = os.environ.get("GHOST_URL", "http://localhost:2368")
 ADMIN = f"{SITE}/ghost/api/admin"
 EMAIL = "owner@example.com"
-PASSWORD = "atelier-dev-password-1"
+PASSWORD = "Harbor-Lantern-7319-quiet"
 ENV_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 
 cookies = http.cookiejar.CookieJar()
 opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookies))
+
+
+def parse(raw):
+    # Some endpoints (e.g. session/) answer with plain text such as "Created".
+    try:
+        return json.loads(raw) if raw else None
+    except json.JSONDecodeError:
+        return raw.decode(errors="replace")
 
 
 def call(method, path, body=None, expect_ok=True):
@@ -35,12 +43,12 @@ def call(method, path, body=None, expect_ok=True):
     try:
         with opener.open(request) as response:
             raw = response.read()
-            return response.status, json.loads(raw) if raw else None
+            return response.status, parse(raw)
     except urllib.error.HTTPError as error:
         raw = error.read()
         if expect_ok:
             sys.exit(f"{method} {path} failed: {error.code} {raw.decode(errors='replace')}")
-        return error.code, json.loads(raw) if raw else None
+        return error.code, parse(raw)
 
 
 def wait_for_ghost():
