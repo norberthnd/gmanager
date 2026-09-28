@@ -1,0 +1,38 @@
+# Local Ghost 6 for API checks and integration tests. Not for production use.
+services:
+  ghost:
+    image: ghost:6
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "2368:2368"
+    environment:
+      url: http://localhost:2368
+      database__client: mysql
+      database__connection__host: db
+      database__connection__user: root
+      database__connection__password: ghostdev
+      database__connection__database: ghost
+      # No mail server here, so skip new-device email verification on staff login.
+      security__staffDeviceVerification: "false"
+      mail__transport: SMTP
+      mail__options__host: localhost
+      mail__options__port: 25
+    volumes:
+      - ./data/ghost:/var/lib/ghost/content
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ghostdev
+      MYSQL_DATABASE: ghost
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pghostdev"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - ./data/mysql:/var/lib/mysql
