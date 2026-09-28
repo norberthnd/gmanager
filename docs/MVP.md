@@ -69,11 +69,16 @@ concurrency; the change log stores it; undo builds and runs the inverse plan.
 
 ### Ghost API facts that shape the design
 
+Verified against Ghost 6.65 — details in [`api-notes.md`](api-notes.md).
+
 - Admin API auth: HS256 JWT from the `id:secret` key, 5-minute expiry, `aud: /admin/`.
-- `PUT /posts/{id}/` requires the current `updated_at`; stale values are rejected
-  (conflict) → re-fetch and retry.
-- Tags on an edit replace the whole list — tag operations are read-modify-write per post.
-- `/posts/bulk/` is used by Ghost Admin but not publicly documented — optional speed-up only.
+  Validate a key with an authenticated request (`/site/` needs no auth; `/users/me/` is 404 for integrations).
+- `PUT /posts/{id}/` requires `updated_at`; a stale value after a *field* change → 409 `UpdateCollisionError`.
+- **Tag-only edits don't bump `updated_at`, so they are not conflict-protected.** Tag operations
+  re-read each post right before writing and compute the new list from the fresh tags.
+- Page size is capped at 100; browse includes bodies unless `fields=` is set.
+- `/posts/bulk/` works with an integration key but has no remove-tag action and no per-post
+  conflict checks — not used in v0.1.
 - Rate limits vary by host — start at ~3 concurrent requests, back off on 429/5xx.
 
 ## Milestones

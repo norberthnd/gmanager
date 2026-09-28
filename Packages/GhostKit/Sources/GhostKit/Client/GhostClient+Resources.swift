@@ -3,7 +3,7 @@ import Foundation
 /// Options for a browse (list) request.
 public struct BrowseQuery: Sendable, Equatable {
     public var filter: NQL?
-    /// Items per page. Ghost caps this server-side; 100 is a safe maximum.
+    /// Items per page. Ghost 6 caps this at 100 (even for `limit=all`).
     public var limit: Int
     public var page: Int
     public var order: String?
@@ -43,6 +43,14 @@ public struct BrowseQuery: Sendable, Equatable {
 extension GhostClient {
     public static let postIncludes = ["tags", "authors", "tiers"]
 
+    /// Every `Post` field except bodies. Browse returns `lexical` by default,
+    /// so sync passes these as `fields=` to keep responses small.
+    public static let postSyncFields = [
+        "id", "uuid", "title", "slug", "status", "visibility", "featured", "url", "excerpt",
+        "custom_excerpt", "feature_image", "feature_image_alt", "meta_title", "meta_description",
+        "canonical_url", "custom_template", "created_at", "published_at", "updated_at",
+    ]
+
     // MARK: Site
 
     public func site() async throws -> SiteInfo {
@@ -50,9 +58,11 @@ extension GhostClient {
         return try decode(Envelope<SiteInfo>.self, from: data).single("site")
     }
 
-    public func currentUser() async throws -> User {
-        let data = try await send(.get, "users/me", query: [URLQueryItem(name: "include", value: "roles")])
-        return try decode(ListEnvelope<User>.self, from: data).first("users")
+    /// Confirms the key is accepted. `/site/` answers without auth and
+    /// `/users/me/` is 404 for integrations, so this makes the smallest
+    /// authenticated request instead. Throws `.unauthorized` for a bad key.
+    public func verifyAccess() async throws {
+        _ = try await send(.get, "posts", query: [URLQueryItem(name: "limit", value: "1"), URLQueryItem(name: "fields", value: "id")])
     }
 
     // MARK: Posts & pages
@@ -66,8 +76,12 @@ extension GhostClient {
         return try decode(ListEnvelope<Post>.self, from: data).first(kind.resource)
     }
 
-    /// Applies `patch` to one post or page. Throws `.conflict` if it changed
-    /// on the server since `patch.updatedAt` was read.
+    /// Applies `patch` to one post or page. Throws `.conflict` if a field
+    /// changed on the server since `patch.updatedAt` was read.
+    ///
+    /// Relation-only changes (tags, authors) do not bump `updated_at`, so two
+    /// tag edits made from the same read both succeed and the last one wins.
+    /// Callers must re-read immediately before a tag edit (see docs/api-notes.md).
     public func edit(_ kind: ContentKind, id: String, _ patch: PostPatch) async throws -> Post {
         let body = try Self.encoder.encode([kind.resource: [patch]])
         let data = try await send(.put, "\(kind.resource)/\(id)", query: [include(Self.postIncludes)], body: body)

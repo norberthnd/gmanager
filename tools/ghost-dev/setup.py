@@ -86,7 +86,9 @@ def ensure_integration():
         integration = body["integrations"][0]
         print("integration: created")
     admin_key = next(k for k in integration["api_keys"] if k["type"] == "admin")
-    key = f"{admin_key['id']}:{admin_key['secret']}"
+    # Ghost 6 returns the full "<id>:<secret>" key in `secret`; older versions only the hex secret.
+    secret = admin_key["secret"]
+    key = secret if ":" in secret else f"{admin_key['id']}:{secret}"
     with open(ENV_FILE, "w") as f:
         f.write(f"GHOST_URL={SITE}\nGHOST_ADMIN_KEY={key}\n")
     print(f"integration: key written to {ENV_FILE}")
