@@ -1,0 +1,12 @@
+.DS_Store
+.build/
+.swiftpm/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+*.xcuserstate
+Packages/*/Package.resolved
+
+# Local Ghost dev environment
+tools/ghost-dev/.env
+tools/ghost-dev/data/
