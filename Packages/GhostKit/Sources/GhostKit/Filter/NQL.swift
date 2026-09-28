@@ -91,7 +91,7 @@ public indirect enum NQL: Sendable, Equatable {
         case .bool(let b): return b ? "true" : "false"
         case .null: return "null"
         case .list(let items): return "[" + items.map(quote).joined(separator: ",") + "]"
-        case .date(let d): return quote(dateFormatter.string(from: d))
+        case .date(let d): return quote(d.formatted(dateStyle))
         }
     }
 
@@ -99,12 +99,11 @@ public indirect enum NQL: Sendable, Equatable {
         "'" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "'", with: "\\'") + "'"
     }
 
-    // DateFormatter is thread-safe for formatting; it is never mutated after creation.
-    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = TimeZone(identifier: "UTC")
-        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        return f
-    }()
+    /// `yyyy-MM-dd HH:mm:ss` in UTC, the form NQL date comparisons accept.
+    private static let dateStyle = Date.ISO8601FormatStyle(timeZone: .gmt)
+        .year().month().day()
+        .dateSeparator(.dash)
+        .dateTimeSeparator(.space)
+        .time(includingFractionalSeconds: false)
+        .timeSeparator(.colon)
 }

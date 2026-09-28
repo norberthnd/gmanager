@@ -82,7 +82,8 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
 
         let request = try #require(transport.requests.first)
         #expect(request.httpMethod == "PUT")
-        #expect(request.url?.path.hasSuffix("/ghost/api/admin/posts/p1/") == true)
+        // Ghost requires the trailing slash; `URL.path` would hide it.
+        #expect(request.url?.absoluteString.hasPrefix("https://example.com/blog/ghost/api/admin/posts/p1/?include=") == true)
         let body = try #require(request.httpBody.flatMap { String(data: $0, encoding: .utf8) })
         #expect(body == #"{"posts":[{"tags":[{"id":"t1"},{"name":"New tag"}],"updated_at":"2025-03-01T10:00:00.000Z"}]}"#)
     }
@@ -131,7 +132,7 @@ final class StubTransport: HTTPTransport, @unchecked Sendable {
 }
 
 enum Fixtures {
-    static let site = #"{"site":{"title":"Example","url":"https://example.com/","version":"6.3","icon":null,"accent_color":"#ff1a75"}}"#
+    static let site = ##"{"site":{"title":"Example","url":"https://example.com/","version":"6.3","icon":null,"accent_color":"#ff1a75"}}"##
 
     static let postsPage = #"""
     {
