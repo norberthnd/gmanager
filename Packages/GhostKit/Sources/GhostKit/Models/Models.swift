@@ -17,13 +17,26 @@ public enum Visibility: String, Sendable, Codable {
     case `public`, members, paid, tiers
 }
 
-/// Reference to a related object when editing: Ghost accepts `{ "id": … }`
-/// for existing objects or `{ "name": … }` to create a tag on the fly.
+/// Reference to a related object when editing.
+///
+/// Ghost resolves tag references by `id`, else by `slug`, else by `name`,
+/// creating the tag when no match exists. An unknown `id` fails the whole
+/// edit (422), so references to tags that may have been deleted must use
+/// `slug` + `name` instead.
 public struct Ref: Sendable, Codable, Equatable, Hashable {
     public var id: String?
+    public var slug: String?
     public var name: String?
-    public static func id(_ id: String) -> Ref { Ref(id: id, name: nil) }
-    public static func name(_ name: String) -> Ref { Ref(id: nil, name: name) }
+
+    public init(id: String? = nil, slug: String? = nil, name: String? = nil) {
+        self.id = id
+        self.slug = slug
+        self.name = name
+    }
+
+    public static func id(_ id: String) -> Ref { Ref(id: id) }
+    public static func name(_ name: String) -> Ref { Ref(name: name) }
+    public static func slug(_ slug: String, name: String) -> Ref { Ref(slug: slug, name: name) }
 }
 
 public struct Post: Sendable, Codable, Equatable, Identifiable {
@@ -128,6 +141,15 @@ public struct Tier: Sendable, Codable, Equatable, Hashable, Identifiable {
     public var type: String?
     public var active: Bool?
     public var visibility: String?
+
+    public init(id: String, name: String, slug: String? = nil, type: String? = nil, active: Bool? = nil, visibility: String? = nil) {
+        self.id = id
+        self.name = name
+        self.slug = slug
+        self.type = type
+        self.active = active
+        self.visibility = visibility
+    }
 }
 
 public struct User: Sendable, Codable, Equatable, Hashable, Identifiable {
@@ -136,6 +158,14 @@ public struct User: Sendable, Codable, Equatable, Hashable, Identifiable {
     public var slug: String
     public var email: String?
     public var profileImage: String?
+
+    public init(id: String, name: String, slug: String, email: String? = nil, profileImage: String? = nil) {
+        self.id = id
+        self.name = name
+        self.slug = slug
+        self.email = email
+        self.profileImage = profileImage
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name, slug, email
@@ -148,6 +178,13 @@ public struct Newsletter: Sendable, Codable, Equatable, Hashable, Identifiable {
     public var name: String
     public var slug: String?
     public var status: String?
+
+    public init(id: String, name: String, slug: String? = nil, status: String? = nil) {
+        self.id = id
+        self.name = name
+        self.slug = slug
+        self.status = status
+    }
 }
 
 public struct SiteInfo: Sendable, Codable, Equatable {

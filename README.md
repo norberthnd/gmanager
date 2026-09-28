@@ -9,8 +9,9 @@ See [`docs/MVP.md`](docs/MVP.md) for scope, decisions and architecture.
 
 ```
 Packages/GhostKit   Ghost Admin API client (Swift package, builds on macOS and Linux)
-Packages/AppCore    Local store, sync, operations engine (added in milestone 2)
+Packages/AppCore    Local store (SQLite/GRDB), sync, filters, bulk operations, change log, undo
 tools/ghost-dev     Docker Ghost 6 for integration tests
+tools/swift-dev     Docker image with Swift + SQLite for running tests on Linux
 docs/               Plan and API notes
 ```
 
@@ -36,6 +37,10 @@ swift test --package-path Packages/GhostKit
 Without a local Swift toolchain, the tests run in Docker:
 
 ```sh
+docker build -t atelier-swift tools/swift-dev
 docker run --rm --network host --env-file tools/ghost-dev/.env \
-  -v "$PWD":/src -w /src/Packages/GhostKit swift:latest swift test
+  -v "$PWD":/src -w /src/Packages/AppCore atelier-swift swift test
 ```
+
+Live tests (`LiveGhostTests`, `LiveSessionTests`) run only when `GHOST_URL` and
+`GHOST_ADMIN_KEY` are set; they edit `seed`-tagged posts and clean up after themselves.

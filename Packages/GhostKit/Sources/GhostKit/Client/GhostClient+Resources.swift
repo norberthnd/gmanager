@@ -71,8 +71,17 @@ extension GhostClient {
         try await browse(kind.resource, query)
     }
 
-    public func read(_ kind: ContentKind, id: String) async throws -> Post {
-        let data = try await send(.get, "\(kind.resource)/\(id)", query: [include(Self.postIncludes)])
+    /// Number of posts or pages matching `filter`, without fetching them.
+    public func count(_ kind: ContentKind, filter: NQL? = nil) async throws -> Int {
+        let query = BrowseQuery(filter: filter, limit: 1, fields: ["id"])
+        let data = try await send(.get, kind.resource, query: query.queryItems)
+        return try decode(CountEnvelope.self, from: data).meta.pagination.total
+    }
+
+    public func read(_ kind: ContentKind, id: String, fields: [String] = []) async throws -> Post {
+        var query = [include(Self.postIncludes)]
+        if !fields.isEmpty { query.append(URLQueryItem(name: "fields", value: fields.joined(separator: ","))) }
+        let data = try await send(.get, "\(kind.resource)/\(id)", query: query)
         return try decode(ListEnvelope<Post>.self, from: data).first(kind.resource)
     }
 
@@ -186,6 +195,12 @@ struct ListEnvelope<Item: Decodable>: Decodable {
         guard let item = try list(key).first else { throw GhostError.decoding("Empty '\(key)' in response") }
         return item
     }
+}
+
+/// Only the pagination total of a browse response.
+struct CountEnvelope: Decodable {
+    struct Meta: Decodable { let pagination: Pagination }
+    let meta: Meta
 }
 
 /// `{ "<key>": { ... } }` for single-object responses such as `/site/`.

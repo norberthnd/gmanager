@@ -62,10 +62,23 @@ tools/ghost-dev  Docker Ghost 6 for integration tests and API checks.
 
 ### Operations engine
 
-An `Operation` turns (selected items + parameters) into a `Plan`: a list of
-per-item changes, each carrying the item's `updated_at`, fields before and
-fields after. Preview renders the plan; the executor applies it with bounded
-concurrency; the change log stores it; undo builds and runs the inverse plan.
+A `BulkOperation` is an *intent* ("remove tag X", "set access to Gold"), not a
+set of final values. `Planner` applies it to the selected items' local state to
+produce a `Plan` (per item: before/after) for the preview.
+
+`BatchExecutor` then, per item, with bounded parallelism:
+re-reads the post → applies the operation to its **fresh** state → sends only the
+changed fields with the fresh `updated_at` → stores the server's response →
+records actual before/after in the change log (`applied`, or `adjusted` if the
+post had changed since the preview). 409 conflicts are re-read and retried.
+Runs can be paused, resumed and cancelled; in-flight writes always finish.
+
+Undo is a `restore` operation built from the log: each item's touched fields go
+back to their previous values, **only if** they still equal what the batch
+wrote; otherwise that item is reported as a conflict and left alone.
+
+Tag merge = replace A→B on every item, then delete A once the server confirms
+nothing uses it. Undo recreates A by slug + name.
 
 ### Ghost API facts that shape the design
 
@@ -83,9 +96,9 @@ Verified against Ghost 6.65 — details in [`api-notes.md`](api-notes.md).
 
 ## Milestones
 
-0. **API check** — Docker Ghost 6; confirm partial edits, conflict behaviour,
+0. ✅ **API check** — Docker Ghost 6; confirm partial edits, conflict behaviour,
    pagination/field selection, bulk endpoint with integration key → `docs/api-notes.md`.
-1. **GhostKit** — client + models + tests (unit and integration).
-2. **AppCore** — store, sync, filters, operations, change log/undo, tested end-to-end.
+1. ✅ **GhostKit** — client + models + tests (unit and integration).
+2. ✅ **AppCore** — store, sync, filters, operations, change log/undo, tested end-to-end.
 3. **App UI** — Xcode target on a Mac; views built on AppCore.
 4. **Beta readiness** — licensing, Sparkle, notarization, icon, name, landing page.
